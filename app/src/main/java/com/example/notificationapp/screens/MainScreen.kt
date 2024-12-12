@@ -1,7 +1,10 @@
 package com.example.notificationapp.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
+import NotificationViewModel
+import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
 import android.icu.util.Calendar
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -11,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,18 +50,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.notificationapp.R
 import com.example.notificationapp.data.NotificationData
 import com.example.notificationapp.ui.theme.DarkColorScheme
-import com.example.notificationapp.viewmodel.NotificationViewModel
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import kotlin.random.Random
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MainScreen(modifier: Modifier = Modifier, notificationViewModel: NotificationViewModel) {
     Scaffold(
@@ -72,7 +73,7 @@ fun MainScreen(modifier: Modifier = Modifier, notificationViewModel: Notificatio
     )
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MainContent(modifier: Modifier = Modifier, notificationViewModel: NotificationViewModel) {
 
@@ -182,16 +183,6 @@ fun MainTopBar() {
 @Composable
 fun NotificationDataItems(notificationData: NotificationData) {
 
-    val context = LocalContext.current
-
-    var builder = NotificationCompat.Builder(context, "NotificationApp")
-        .setSmallIcon(R.drawable.ic_launcher_foreground)
-        .setContentTitle(notificationData.name)
-        .setContentText(notificationData.notificationText)
-        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-
-//    val notificationManager = NotificationManagerCompat.from(context)
-//    notificationManager.
 
     Card(
         modifier = Modifier
@@ -257,8 +248,8 @@ fun NotificationDataItems(notificationData: NotificationData) {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun NotificationAddDialog(
     notificationViewModel: NotificationViewModel,
@@ -267,6 +258,8 @@ fun NotificationAddDialog(
     var name by remember { mutableStateOf("") }
     var notificationText by remember { mutableStateOf("") }
     var time by remember { mutableStateOf(LocalDateTime.now()) }
+
+    val context = LocalContext.current
 
     BasicAlertDialog(
         onDismissRequest = onDismiss
@@ -337,7 +330,6 @@ fun NotificationAddDialog(
                     ) {
                         Text("Cancel")
                     }
-
                     Button(
                         onClick = {
                             if (name.isNotBlank() && notificationText.isNotBlank()) {
@@ -345,6 +337,12 @@ fun NotificationAddDialog(
                                     name = name,
                                     notificationText = notificationText,
                                     time = time
+                                )
+                                notificationViewModel.scheduleNotification(
+                                    context,
+                                    name,
+                                    notificationText,
+                                    time
                                 )
                                 onDismiss()
                             }
@@ -401,3 +399,23 @@ fun TimePicker(
         }
     }
 }
+
+@SuppressLint("MissingPermission")
+class NotificationReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val title = intent.getStringExtra("title") ?: "Default Title"
+        val text = intent.getStringExtra("text") ?: "Default Text"
+
+        val builder = NotificationCompat.Builder(context, "NOTIFICATION_CHANNEL_ID")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+        val notificationManager = NotificationManagerCompat.from(context)
+        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+    }
+}
+
+
+
